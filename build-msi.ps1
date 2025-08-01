@@ -6,7 +6,7 @@ param(
     [string]$OBSPath = "C:\Program Files\obs-studio"
 )
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 
 Write-Host "=== OBS AI Transcription Filter - Build & Package ===" -ForegroundColor Green
 
@@ -15,10 +15,16 @@ Write-Host "Checking prerequisites..." -ForegroundColor Yellow
 
 # Check CMake
 try {
-    $cmakeVersion = & cmake --version
-    Write-Host "✓ CMake found: $($cmakeVersion[0])" -ForegroundColor Green
+    $cmakeVersion = & cmake --version 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "✓ CMake found: $($cmakeVersion[0])" -ForegroundColor Green
+    } else {
+        throw "CMake not found"
+    }
 } catch {
-    Write-Error "CMake not found. Please install CMake and add it to PATH."
+    Write-Host "❌ CMake not found. Please install CMake and add it to PATH." -ForegroundColor Red
+    Read-Host "Press Enter to exit"
+    exit 1
 }
 
 # Check Visual Studio
@@ -28,18 +34,24 @@ if (Test-Path $vsWhere) {
     if ($vsPath) {
         Write-Host "✓ Visual Studio found at: $vsPath" -ForegroundColor Green
     } else {
-        Write-Error "Visual Studio not found. Please install Visual Studio with C++ support."
+        Write-Host "❌ Visual Studio not found. Please install Visual Studio with C++ support." -ForegroundColor Red
+        Read-Host "Press Enter to exit"
+        exit 1
     }
 } else {
-    Write-Warning "Could not detect Visual Studio installation."
+    Write-Host "⚠️ Could not detect Visual Studio installation." -ForegroundColor Yellow
 }
 
 # Check WiX Toolset
 try {
-    $wixVersion = & candle.exe -? 2>&1 | Select-String "version"
-    Write-Host "✓ WiX Toolset found" -ForegroundColor Green
+    $null = & candle.exe -? 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "✓ WiX Toolset found" -ForegroundColor Green
+    } else {
+        throw "WiX not found"
+    }
 } catch {
-    Write-Warning "WiX Toolset not found in PATH. You can still build the plugin, but MSI creation will fail."
+    Write-Host "⚠️ WiX Toolset not found in PATH. You can still build the plugin, but MSI creation will fail." -ForegroundColor Yellow
     Write-Host "Download WiX from: https://github.com/wixtoolset/wix3/releases" -ForegroundColor Cyan
 }
 
