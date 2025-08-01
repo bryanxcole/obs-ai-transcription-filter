@@ -3,13 +3,27 @@
 
 param(
     [string]$Configuration = "Release",
-    [string]$OBSPath = "C:\Program Files\obs-studio"
+    [string]$OBSPath = "C:\Program Files\obs-studio",
+    [switch]$UseVcpkg = $false,
+    [switch]$SetupDependencies = $false
 )
 
 $ErrorActionPreference = "Continue"
 
 Write-Host "=== OBS AI Transcription Filter - Auto Build ===" -ForegroundColor Green
 Write-Host "This script will automatically install required tools if needed." -ForegroundColor Yellow
+
+# Setup dependencies if requested
+if ($SetupDependencies) {
+    Write-Host "Setting up dependencies first..." -ForegroundColor Yellow
+    & .\setup-dependencies.ps1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "❌ Dependency setup failed" -ForegroundColor Red
+        Read-Host "Press Enter to exit"
+        exit 1
+    }
+    $UseVcpkg = $true
+}
 
 # Function to check if running as administrator
 function Test-Administrator {
@@ -220,7 +234,16 @@ Push-Location $buildDir
 try {
     # Configure with CMake
     Write-Host "Configuring project with CMake..." -ForegroundColor Yellow
-    & cmake .. -G "Visual Studio 17 2022" -A x64
+    
+    $cmakeArgs = @("..", "-G", "Visual Studio 17 2022", "-A", "x64")
+    
+    # Add vcpkg toolchain if requested
+    if ($UseVcpkg -and (Test-Path "vcpkg-toolchain.cmake")) {
+        Write-Host "Using vcpkg dependencies..." -ForegroundColor Cyan
+        $cmakeArgs += "-DCMAKE_TOOLCHAIN_FILE=vcpkg-toolchain.cmake"
+    }
+    
+    & cmake @cmakeArgs
     
     if ($LASTEXITCODE -ne 0) {
         Write-Host "❌ CMake configuration failed" -ForegroundColor Red

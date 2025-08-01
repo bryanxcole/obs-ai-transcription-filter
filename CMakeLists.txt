@@ -13,12 +13,42 @@ else()
 endif()
 
 # Find required packages
-find_package(libobs REQUIRED)
-find_package(obs-frontend-api REQUIRED)
+find_package(libobs QUIET)
+find_package(obs-frontend-api QUIET)
 
 # Find required libraries for AI integration
-find_package(PkgConfig REQUIRED)
-find_package(CURL REQUIRED)
+find_package(CURL QUIET)
+find_package(PkgConfig QUIET)
+
+# Try to find JsonCpp
+find_package(jsoncpp QUIET)
+if(NOT jsoncpp_FOUND)
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(JSONCPP jsoncpp)
+    endif()
+endif()
+
+# Handle missing OBS libraries gracefully
+if(NOT libobs_FOUND)
+    message(WARNING "OBS libraries not found. Plugin may not link properly.")
+    message(STATUS "Please ensure OBS Studio development headers are available.")
+    # Create dummy targets to allow building
+    add_library(OBS::libobs INTERFACE IMPORTED)
+endif()
+
+# Handle missing dependencies
+if(NOT CURL_FOUND)
+    message(WARNING "libcurl not found. LLM functionality will be disabled.")
+    set(CURL_LIBRARIES "")
+    set(CURL_INCLUDE_DIRS "")
+endif()
+
+if(NOT jsoncpp_FOUND AND NOT JSONCPP_FOUND)
+    message(WARNING "JsonCpp not found. JSON parsing will be limited.")
+    set(JSONCPP_LIBRARIES "")
+    set(JSONCPP_INCLUDE_DIRS "")
+endif()
 
 # Add your source files
 add_library(obs-ai-transcription-filter MODULE
@@ -35,11 +65,39 @@ target_include_directories(obs-ai-transcription-filter PRIVATE
     ${CMAKE_SOURCE_DIR}/deps/whisper.cpp
 )
 
-# Link libraries
-target_link_libraries(obs-ai-transcription-filter
-    OBS::libobs
-    CURL::libcurl
+# Include directories
+target_include_directories(obs-ai-transcription-filter PRIVATE
+    src/
+    ${CURL_INCLUDE_DIRS}
+    ${JSONCPP_INCLUDE_DIRS}
 )
+
+# Link libraries
+set(LINK_LIBRARIES "")
+
+if(libobs_FOUND)
+    list(APPEND LINK_LIBRARIES OBS::libobs)
+endif()
+
+if(CURL_FOUND)
+    if(TARGET CURL::libcurl)
+        list(APPEND LINK_LIBRARIES CURL::libcurl)
+    else()
+        list(APPEND LINK_LIBRARIES ${CURL_LIBRARIES})
+    endif()
+endif()
+
+if(jsoncpp_FOUND)
+    if(TARGET jsoncpp_lib)
+        list(APPEND LINK_LIBRARIES jsoncpp_lib)
+    elseif(TARGET jsoncpp_static)
+        list(APPEND LINK_LIBRARIES jsoncpp_static)
+    endif()
+elseif(JSONCPP_FOUND)
+    list(APPEND LINK_LIBRARIES ${JSONCPP_LIBRARIES})
+endif()
+
+target_link_libraries(obs-ai-transcription-filter ${LINK_LIBRARIES})
 
 # Set plugin properties
 set_target_properties(obs-ai-transcription-filter PROPERTIES
