@@ -208,10 +208,13 @@ if (-not $vsFound) {
     Write-Host "1. Install Visual Studio Build Tools automatically (recommended)" -ForegroundColor Cyan
     Write-Host "2. Install Visual Studio Community manually (full IDE)" -ForegroundColor Cyan
     
-    $choice = Read-Host "Choose option (1 or 2, or 'skip' to continue without)"
+    $choice = Read-Host 'Choose option (1 or 2, or skip to continue without)'
     
     if ($choice -eq "1") {
-        Install-VSBuildTools | Out-Null
+        $installResult = Install-VSBuildTools
+        if (-not $installResult) {
+            Write-Host "⚠️ Build Tools installation may have failed" -ForegroundColor Yellow
+        }
     } elseif ($choice -eq "2") {
         Write-Host "Please download Visual Studio Community from:" -ForegroundColor Cyan
         Write-Host "https://visualstudio.microsoft.com/vs/community/" -ForegroundColor Cyan
@@ -238,9 +241,17 @@ try {
     $cmakeArgs = @("..", "-G", "Visual Studio 17 2022", "-A", "x64")
     
     # Add vcpkg toolchain if requested
-    if ($UseVcpkg -and (Test-Path "vcpkg-toolchain.cmake")) {
-        Write-Host "Using vcpkg dependencies..." -ForegroundColor Cyan
-        $cmakeArgs += "-DCMAKE_TOOLCHAIN_FILE=vcpkg-toolchain.cmake"
+    if ($UseVcpkg) {
+        try {
+            if (Test-Path "vcpkg-toolchain.cmake") {
+                Write-Host "Using vcpkg dependencies..." -ForegroundColor Cyan
+                $cmakeArgs += "-DCMAKE_TOOLCHAIN_FILE=vcpkg-toolchain.cmake"
+            } else {
+                Write-Host "⚠️ vcpkg toolchain file not found, continuing without vcpkg" -ForegroundColor Yellow
+            }
+        } catch {
+            Write-Host "⚠️ Error checking vcpkg toolchain: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
     }
     
     & cmake @cmakeArgs
@@ -295,8 +306,12 @@ try {
     } else {
         Write-Host "⚠️ Plugin DLL not found at expected location" -ForegroundColor Yellow
         Write-Host "Searching for DLL files..." -ForegroundColor Yellow
-        Get-ChildItem -Recurse -Filter "*.dll" | ForEach-Object {
-            Write-Host "  Found: $($_.FullName)" -ForegroundColor Cyan
+        try {
+            Get-ChildItem -Recurse -Filter "*.dll" -ErrorAction SilentlyContinue | ForEach-Object {
+                Write-Host "  Found: $($_.FullName)" -ForegroundColor Cyan
+            }
+        } catch {
+            Write-Host "  Error searching for DLL files: $($_.Exception.Message)" -ForegroundColor Red
         }
     }
 
