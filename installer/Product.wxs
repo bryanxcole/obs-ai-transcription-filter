@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*" 
+           Name="OBS AI Transcription Filter" 
+           Language="1033" 
+           Version="1.0.0.0" 
+           Manufacturer="Bryan Cole" 
+           UpgradeCode="12345678-1234-1234-1234-123456789012">
+    
+    <Package InstallerVersion="200" 
+             Compressed="yes" 
+             InstallScope="perMachine" 
+             Description="AI-Enhanced Voice Transcription Filter for OBS Studio"
+             Comments="Installs the OBS AI Transcription Filter plugin with LLM correction capabilities" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Features -->
+    <Feature Id="ProductFeature" Title="OBS AI Transcription Filter" Level="1">
+      <ComponentGroupRef Id="ProductComponents" />
+      <ComponentGroupRef Id="DataComponents" />
+    </Feature>
+
+    <!-- Custom Actions to detect OBS installation -->
+    <CustomAction Id="DetectOBS64" 
+                  Property="OBSINSTALLDIR" 
+                  Execute="immediate" 
+                  Return="ignore">
+      <![CDATA[
+        var obsPath64 = "";
+        try {
+          var shell = new ActiveXObject("WScript.Shell");
+          obsPath64 = shell.RegRead("HKEY_LOCAL_MACHINE\\SOFTWARE\\OBS Studio\\");
+        } catch(e) {
+          try {
+            obsPath64 = shell.Environment("PROCESS")("PROGRAMFILES") + "\\obs-studio\\";
+          } catch(e2) {
+            obsPath64 = "C:\\Program Files\\obs-studio\\";
+          }
+        }
+        Session.Property("OBSINSTALLDIR") = obsPath64;
+      ]]>
+    </CustomAction>
+
+    <InstallExecuteSequence>
+      <Custom Action="DetectOBS64" Before="CostFinalize" />
+    </InstallExecuteSequence>
+
+    <!-- UI -->
+    <UIRef Id="WixUI_InstallDir" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    
+    <!-- License -->
+    <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+    
+    <!-- Properties -->
+    <Property Id="OBSINSTALLDIR">
+      <DirectorySearch Id="ObsSearch" Path="[ProgramFilesFolder]obs-studio" Depth="0">
+        <FileSearch Id="ObsExeSearch" Name="obs64.exe" />
+      </DirectorySearch>
+    </Property>
+
+    <!-- Error messages -->
+    <Property Id="OBSNOTFOUND" Value="OBS Studio installation not found. Please install OBS Studio first." />
+    
+    <!-- Launch conditions -->
+    <Condition Message="[OBSNOTFOUND]">
+      <![CDATA[OBSINSTALLDIR OR REMOVE]]>
+    </Condition>
+
+  </Product>
+
+  <!-- Directory structure -->
+  <Fragment>
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFilesFolder">
+        <Directory Id="OBSINSTALLDIR" Name="obs-studio">
+          <Directory Id="PLUGINSFOLDER" Name="obs-plugins">
+            <Directory Id="PLUGINSFOLDER64" Name="64bit">
+              <Directory Id="INSTALLFOLDER" Name="." />
+            </Directory>
+          </Directory>
+          <Directory Id="DATAFOLDER" Name="data">
+            <Directory Id="PLUGINSDATAFOLDER" Name="obs-plugins">
+              <Directory Id="PLUGINDATAFOLDER" Name="obs-ai-transcription-filter">
+                <Directory Id="LOCALEFOLDER" Name="locale" />
+              </Directory>
+            </Directory>
+          </Directory>
+        </Directory>
+      </Directory>
+    </Directory>
+  </Fragment>
+
+  <!-- Components -->
+  <Fragment>
+    <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+      <Component Id="PluginDLL" Guid="*">
+        <File Id="PluginDLLFile" 
+              Source="$(var.SolutionDir)build\Release\obs-ai-transcription-filter.dll" 
+              KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <ComponentGroup Id="DataComponents" Directory="LOCALEFOLDER">
+      <Component Id="LocaleEnUS" Guid="*">
+        <File Id="LocaleEnUSFile" 
+              Source="$(var.SolutionDir)data\locale\en-US.ini" 
+              KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+</Wix>

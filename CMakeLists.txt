@@ -54,3 +54,33 @@ if(BUILD_OUT_OF_TREE)
     install(DIRECTORY data/
         DESTINATION data/obs-plugins/obs-ai-transcription-filter)
 endif()
+
+# CPack configuration for MSI installer
+include(InstallRequiredSystemLibraries)
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/installer/License.rtf")
+set(CPACK_PACKAGE_NAME "OBS AI Transcription Filter")
+set(CPACK_PACKAGE_VENDOR "Bryan Cole")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "AI-Enhanced Voice Transcription Filter for OBS Studio")
+set(CPACK_PACKAGE_VERSION "1.0.0")
+set(CPACK_PACKAGE_VERSION_MAJOR "1")
+set(CPACK_PACKAGE_VERSION_MINOR "0")
+set(CPACK_PACKAGE_VERSION_PATCH "0")
+set(CPACK_PACKAGE_INSTALL_DIRECTORY "OBS AI Transcription Filter")
+
+# Windows-specific settings
+if(WIN32)
+    set(CPACK_GENERATOR "WIX")
+    set(CPACK_WIX_UPGRADE_GUID "12345678-1234-1234-1234-123456789012")
+    set(CPACK_WIX_PRODUCT_GUID "*")
+    set(CPACK_WIX_PRODUCT_ICON "${CMAKE_CURRENT_SOURCE_DIR}/installer/icon.ico")
+    set(CPACK_WIX_UI_BANNER "${CMAKE_CURRENT_SOURCE_DIR}/installer/banner.bmp")
+    set(CPACK_WIX_UI_DIALOG "${CMAKE_CURRENT_SOURCE_DIR}/installer/dialog.bmp")
+    
+    # Custom WiX template
+    set(CPACK_WIX_TEMPLATE "${CMAKE_CURRENT_SOURCE_DIR}/installer/Product.wxs")
+    
+    # Registry detection for OBS Studio
+    set(CPACK_WIX_PROPERTY_OBSINSTALLDIR "HKEY_LOCAL_MACHINE\\SOFTWARE\\OBS Studio\\InstallPath")
+endif()
+
+include(CPack)
